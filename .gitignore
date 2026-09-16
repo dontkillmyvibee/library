@@ -1,0 +1,125 @@
+# =========================
+# Go
+# =========================
+
+# Go build output
+/bin/
+/build/
+/dist/
+
+# Compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Coverage
+*.out
+coverage.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# Go build cache
+.gocache/
+
+# =========================
+# Dependencies
+# =========================
+
+# Usually not needed for Go modules,
+# but keep if vendoring is not used.
+/vendor/
+
+# =========================
+# Environment / secrets
+# =========================
+
+.env
+.env.*
+!.env.example
+
+# =========================
+# IDE
+# =========================
+
+# JetBrains / GoLand
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# =========================
+# macOS
+# =========================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnail cache
+._*
+
+# Spotlight
+.Spotlight-V100
+
+# Trash
+.Trashes
+
+# Finder metadata
+.DocumentRevisions-V100
+
+# Volumes
+.VolumeIcon.icns
+
+# =========================
+# Logs
+# =========================
+
+*.log
+logs/
+
+# =========================
+# Temporary files
+# =========================
+
+*.tmp
+*.temp
+tmp/
+temp/
+
+# =========================
+# Database / local storage
+# =========================
+
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# Profiling
+# =========================
+
+*.prof
+
+# =========================
+# OS / editor swap files
+# =========================
+
+*.swp
+*.swo
+*~
+
+# =========================
+# Local configuration
+# =========================
+
+config.local.*
+config.*.local.*
