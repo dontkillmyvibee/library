@@ -10,10 +10,10 @@ type Book struct {
 	Title       string
 	Description string
 	AuthorNames []string
-
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt *time.Time
+	IsAvailable bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   *time.Time
 }
 
 func NewBook(title, description string, authorNames []string) Book {
@@ -25,20 +25,9 @@ func NewBook(title, description string, authorNames []string) Book {
 		Title:       title,
 		Description: description,
 		AuthorNames: tmp,
+		IsAvailable: true,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 		DeletedAt:   nil,
 	}
-}
-
-func (book *Book) Delete() error {
-	if book.DeletedAt != nil {
-		return ErrBookAlreadyDeleted
-	}
-
-	now := time.Now()
-	book.DeletedAt = &now
-	book.UpdatedAt = now
-
-	return nil
 }
