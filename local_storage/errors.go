@@ -3,7 +3,10 @@ package local_storage
 import "errors"
 
 var (
-	ErrBookAlreadyExist   = errors.New("book already exist")
-	ErrBookNotFound       = errors.New("book not found")
-	ErrBookAlreadyDeleted = errors.New("book already deleted")
+	ErrBookAlreadyExists    = errors.New("book already exists")
+	ErrBookNotFound         = errors.New("book not found")
+	ErrBookAlreadyDeleted   = errors.New("book already deleted")
+	ErrAuthorAlreadyExists  = errors.New("author already exists")
+	ErrAuthorNotFound       = errors.New("author not found")
+	ErrAuthorAlreadyDeleted = errors.New("author already deleted")
 )
