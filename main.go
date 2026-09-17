@@ -11,7 +11,8 @@ import (
 func main() {
 	localStorage := local_storage.NewStorage()
 	bookHandler := handlers.NewHTTPBookHandlers(localStorage)
-	server := server2.NewHTTPServer(bookHandler)
+	authorHandler := handlers.NewHTTPAuthorHandlers(localStorage)
+	server := server2.NewHTTPServer(bookHandler, authorHandler)
 
 	if err := server.StartServer(); err != nil {
 		fmt.Println("err", err)
