@@ -6,21 +6,23 @@ import (
 	"time"
 )
 
-type Error struct {
-	Code    int       `json:"code"`
-	Message string    `json:"message"`
-	Time    time.Time `json:"time"`
+type ErrorSchema struct {
+	Code        int       `json:"code"`
+	Description string    `json:"description"`
+	Message     string    `json:"message"`
+	Time        time.Time `json:"time"`
 }
 
-func NewError(code int, message string) Error {
-	return Error{
-		Code:    code,
-		Message: message,
-		Time:    time.Now(),
+func NewError(code int, description, message string) ErrorSchema {
+	return ErrorSchema{
+		Code:        code,
+		Description: description,
+		Message:     message,
+		Time:        time.Now(),
 	}
 }
 
-func (e Error) ToJSONString() string {
+func (e ErrorSchema) ToJSONString() string {
 	bytes, err := json.MarshalIndent(e, "", "\t")
 	if err != nil {
 		// тут надо бы как то логировать, но пока не знаю как

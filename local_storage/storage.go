@@ -1,6 +1,7 @@
 package local_storage
 
 import (
+	"slices"
 	"time"
 	"uuid"
 
@@ -22,6 +23,13 @@ func (s *Storage) AddBook(book models.Book) error {
 		return ErrBookAlreadyExist
 	}
 
+	for _, existingBook := range s.books {
+		if existingBook.Title == book.Title &&
+			slices.Equal(existingBook.AuthorNames, book.AuthorNames) {
+			return ErrBookAlreadyExist
+		}
+	}
+
 	s.books[book.ID] = book
 	return nil
 }
@@ -29,6 +37,10 @@ func (s *Storage) AddBook(book models.Book) error {
 func (s *Storage) GetBook(id uuid.UUID) (models.Book, error) {
 	book, ok := s.books[id]
 	if !ok {
+		return models.Book{}, ErrBookNotFound
+	}
+
+	if book.DeletedAt != nil {
 		return models.Book{}, ErrBookNotFound
 	}
 
