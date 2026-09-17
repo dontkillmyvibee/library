@@ -14,12 +14,12 @@ type CreateAuthorRequestSchema struct {
 }
 
 type CreateAuthorResponseSchema struct {
-	ID         uuid.UUID
-	FirstName  string
-	LastName   string
-	MiddleName string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID         uuid.UUID `json:"id"`
+	FirstName  string    `json:"first_name"`
+	LastName   string    `json:"last_name"`
+	MiddleName string    `json:"middle_name"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type GetAuthorResponseSchema CreateAuthorResponseSchema
