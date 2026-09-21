@@ -11,6 +11,8 @@ type Storage struct {
 	books       map[uuid.UUID]models.Book
 	authors     map[uuid.UUID]models.Author
 	bookAuthors map[models.BookAuthor]struct{}
+	readers     map[uuid.UUID]models.Reader
+	bookReaders map[models.BookReader]struct{}
 }
 
 func NewStorage() *Storage {
@@ -18,6 +20,8 @@ func NewStorage() *Storage {
 		books:       make(map[uuid.UUID]models.Book),
 		authors:     make(map[uuid.UUID]models.Author),
 		bookAuthors: make(map[models.BookAuthor]struct{}),
+		readers:     make(map[uuid.UUID]models.Reader),
+		bookReaders: make(map[models.BookReader]struct{}),
 	}
 }
 
@@ -54,14 +58,14 @@ func (s *Storage) AddBook(newBook models.Book, authorIDs []uuid.UUID) (models.Bo
 		bookModel := models.NewBookAuthor(newBook.ID, authorID)
 		if err := s.AddBookAuthor(bookModel); err != nil {
 			delete(s.books, newBook.ID)
-			s.DeleteBookAuthorByBookId(newBook.ID)
+			s.DeleteBookAuthorByBookID(newBook.ID)
 			return models.Book{}, err
 		}
 	}
 
 	if err := s.Save(); err != nil {
 		delete(s.books, newBook.ID)
-		s.DeleteBookAuthorByBookId(newBook.ID)
+		s.DeleteBookAuthorByBookID(newBook.ID)
 
 		return models.Book{}, err
 	}
@@ -136,7 +140,7 @@ func (s *Storage) DeleteBook(id uuid.UUID) error {
 	book.UpdatedAt = now
 
 	s.books[id] = book
-	s.DeleteBookAuthorByBookId(id)
+	s.DeleteBookAuthorByBookID(id)
 
 	if err := s.Save(); err != nil {
 		s.books[id] = oldBook
@@ -226,7 +230,7 @@ func (s *Storage) DeleteAuthor(id uuid.UUID) error {
 		return ErrAuthorAlreadyDeleted
 	}
 
-	bookAuthors := s.GetBookAuthorByAuthorId(id)
+	bookAuthors := s.GetBookAuthorByAuthorID(id)
 
 	for bookAuthor := range bookAuthors {
 		authors := s.GetAuthorsByBookID(bookAuthor.BookID)
@@ -243,7 +247,7 @@ func (s *Storage) DeleteAuthor(id uuid.UUID) error {
 	author.UpdatedAt = now
 
 	s.authors[id] = author
-	s.DeleteBookAuthorByAuthorId(id)
+	s.DeleteBookAuthorByAuthorID(id)
 
 	if err := s.Save(); err != nil {
 		s.authors[id] = oldAuthor
@@ -260,7 +264,7 @@ func (s *Storage) DeleteAuthor(id uuid.UUID) error {
 
 func (s *Storage) AddBookAuthor(bookAuthor models.BookAuthor) error {
 	if _, ok := s.bookAuthors[bookAuthor]; ok {
-		return ErrBookAuthorAlreadyExist
+		return ErrBookAuthorAlreadyExists
 	}
 
 	s.bookAuthors[bookAuthor] = struct{}{}
@@ -276,7 +280,7 @@ func (s *Storage) DeleteBookAuthor(bookAuthor models.BookAuthor) error {
 	return nil
 }
 
-func (s *Storage) DeleteBookAuthorByAuthorId(authorID uuid.UUID) {
+func (s *Storage) DeleteBookAuthorByAuthorID(authorID uuid.UUID) {
 	for bookAuthor := range s.bookAuthors {
 		if bookAuthor.AuthorID == authorID {
 			delete(s.bookAuthors, bookAuthor)
@@ -284,7 +288,7 @@ func (s *Storage) DeleteBookAuthorByAuthorId(authorID uuid.UUID) {
 	}
 }
 
-func (s *Storage) DeleteBookAuthorByBookId(bookID uuid.UUID) {
+func (s *Storage) DeleteBookAuthorByBookID(bookID uuid.UUID) {
 	for bookAuthor := range s.bookAuthors {
 		if bookAuthor.BookID == bookID {
 			delete(s.bookAuthors, bookAuthor)
@@ -304,12 +308,184 @@ func (s *Storage) GetBookAuthorByBookID(bookID uuid.UUID) map[models.BookAuthor]
 	return tmp
 }
 
-func (s *Storage) GetBookAuthorByAuthorId(authorID uuid.UUID) map[models.BookAuthor]struct{} {
+func (s *Storage) GetBookAuthorByAuthorID(authorID uuid.UUID) map[models.BookAuthor]struct{} {
 	tmp := make(map[models.BookAuthor]struct{})
 
 	for bookAuthor := range s.bookAuthors {
 		if bookAuthor.AuthorID == authorID {
 			tmp[bookAuthor] = struct{}{}
+		}
+	}
+
+	return tmp
+}
+
+func (s *Storage) AddReader(reader models.Reader) error {
+	if _, ok := s.readers[reader.ID]; ok {
+		return ErrReaderAlreadyExists
+	}
+
+	for _, existingReader := range s.readers {
+		if existingReader.FirstName == reader.FirstName &&
+			existingReader.LastName == reader.LastName &&
+			existingReader.MiddleName == reader.MiddleName {
+			return ErrReaderAlreadyExists
+		}
+	}
+
+	s.readers[reader.ID] = reader
+
+	if err := s.Save(); err != nil {
+		delete(s.readers, reader.ID)
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) DeleteReader(id uuid.UUID) error {
+	reader, ok := s.readers[id]
+	if !ok {
+		return ErrReaderNotFound
+	}
+
+	if reader.DeletedAt != nil {
+		return ErrReaderAlreadyDeleted
+	}
+
+	bookReaders := s.GetBookReaderByReaderID(id)
+
+	if len(bookReaders) > 0 {
+		return ErrReaderHasBook
+	}
+
+	oldReader := s.readers[id]
+
+	now := time.Now()
+	reader.DeletedAt = &now
+	reader.UpdatedAt = now
+
+	s.readers[id] = reader
+
+	if err := s.Save(); err != nil {
+		s.readers[id] = oldReader
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) GetReader(id uuid.UUID) (models.Reader, error) {
+	reader, ok := s.readers[id]
+	if !ok {
+		return models.Reader{}, ErrReaderNotFound
+	}
+
+	if reader.DeletedAt != nil {
+		return models.Reader{}, ErrReaderAlreadyDeleted
+	}
+
+	return reader, nil
+}
+
+func (s *Storage) GetAllReaders() map[uuid.UUID]models.Reader {
+	tmp := make(map[uuid.UUID]models.Reader, len(s.readers))
+
+	for _, reader := range s.readers {
+		if reader.DeletedAt == nil {
+			tmp[reader.ID] = reader
+		}
+	}
+
+	return tmp
+}
+
+func (s *Storage) ReaderTakeBook(readerID, bookID uuid.UUID) error {
+	reader, ok := s.readers[readerID]
+	if !ok || reader.DeletedAt != nil {
+		return ErrReaderNotFound
+	}
+
+	book, ok := s.books[bookID]
+	if !ok || book.DeletedAt != nil {
+		return ErrBookNotFound
+	}
+
+	if !book.IsAvailable {
+		return ErrBookUnavailable
+	}
+
+	if bookReaders := s.GetBookReaderByReaderID(readerID); len(bookReaders) > 0 {
+		return ErrReaderHasBook
+	}
+
+	bookReader := models.NewBookReader(bookID, readerID)
+
+	if err := s.AddBookReader(bookReader); err != nil {
+		return err
+	}
+
+	oldBook := book
+
+	book.IsAvailable = false
+	book.UpdatedAt = time.Now()
+	s.books[bookID] = book
+
+	if err := s.Save(); err != nil {
+		delete(s.bookReaders, bookReader)
+		s.books[bookID] = oldBook
+
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) ReaderReturnBook(readerID, bookID uuid.UUID) error {
+	bookReader := models.NewBookReader(bookID, readerID)
+
+	if _, ok := s.bookReaders[bookReader]; !ok {
+		return ErrBookReaderNotFound
+	}
+
+	book, ok := s.books[bookID]
+	if !ok || book.DeletedAt != nil {
+		return ErrBookNotFound
+	}
+
+	oldBook := book
+
+	delete(s.bookReaders, bookReader)
+	book.IsAvailable = true
+	book.UpdatedAt = time.Now()
+
+	s.books[bookID] = book
+
+	if err := s.Save(); err != nil {
+		s.bookReaders[bookReader] = struct{}{}
+		s.books[bookID] = oldBook
+
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) AddBookReader(bookReader models.BookReader) error {
+	if _, ok := s.bookReaders[bookReader]; ok {
+		return ErrBookReaderAlreadyExists
+	}
+
+	s.bookReaders[bookReader] = struct{}{}
+	return nil
+}
+
+func (s *Storage) GetBookReaderByReaderID(readerID uuid.UUID) map[models.BookReader]struct{} {
+	tmp := make(map[models.BookReader]struct{})
+
+	for bookReader := range s.bookReaders {
+		if bookReader.ReaderID == readerID {
+			tmp[bookReader] = struct{}{}
 		}
 	}
 
