@@ -10,6 +10,10 @@ import (
 
 func main() {
 	localStorage := local_storage.NewStorage()
+	if err := localStorage.Load(); err != nil {
+		//тут тоже надо норм логировать
+		fmt.Println(err.Error())
+	}
 	bookHandler := handlers.NewHTTPBookHandlers(localStorage)
 	authorHandler := handlers.NewHTTPAuthorHandlers(localStorage)
 	server := server2.NewHTTPServer(bookHandler, authorHandler)
