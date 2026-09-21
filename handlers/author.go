@@ -156,6 +156,78 @@ func (h *HTTPAuthorHandlers) GetAllAuthors(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+func (h *HTTPAuthorHandlers) UpdateAuthor(w http.ResponseWriter, r *http.Request) {
+	var updateAuthorRequest schemas.UpdateAuthorRequestSchema
+
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		errDTO := schemas.NewError(
+			http.StatusBadRequest,
+			http.StatusText(http.StatusBadRequest),
+			ErrInvalidUUID.Error(),
+		)
+		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+		return
+	}
+
+	if !helpers.DecodeJSONHelper(w, r, &updateAuthorRequest) {
+		return
+	}
+
+	updateAuthorRequest.Normalize()
+
+	if err := updateAuthorRequest.Validate(); err != nil {
+		errDTO := schemas.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), err.Error())
+		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+		return
+	}
+
+	updateData := models.UpdateAuthorData{
+		FirstName:  *updateAuthorRequest.FirstName,
+		LastName:   *updateAuthorRequest.LastName,
+		MiddleName: *updateAuthorRequest.MiddleName,
+	}
+
+	author, err := h.localStorage.UpdateAuthor(id, updateData)
+	if err != nil {
+		if errors.Is(err, local_storage.ErrAuthorNotFound) {
+			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
+			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+			return
+		}
+
+		if errors.Is(err, local_storage.ErrAuthorAlreadyExists) {
+			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
+			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			return
+		}
+
+		errDTO := schemas.NewError(
+			http.StatusInternalServerError,
+			http.StatusText(http.StatusInternalServerError),
+			"internal server error",
+		)
+		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		return
+	}
+
+	response := schemas.UpdateAuthorResponseSchema{
+		ID:         author.ID,
+		FirstName:  author.FirstName,
+		LastName:   author.LastName,
+		MiddleName: author.MiddleName,
+		CreatedAt:  author.CreatedAt,
+		UpdatedAt:  author.UpdatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		fmt.Println("err:", err)
+	}
+}
+
 func (h *HTTPAuthorHandlers) DeleteAuthor(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {

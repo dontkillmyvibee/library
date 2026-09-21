@@ -77,6 +77,78 @@ func (h *HTTPReaderHandlers) CreateReader(w http.ResponseWriter, r *http.Request
 	}
 }
 
+func (h *HTTPReaderHandlers) UpdateReader(w http.ResponseWriter, r *http.Request) {
+	var updateReaderRequest schemas.UpdateReaderRequestSchema
+
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		errDTO := schemas.NewError(
+			http.StatusBadRequest,
+			http.StatusText(http.StatusBadRequest),
+			ErrInvalidUUID.Error(),
+		)
+		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+		return
+	}
+
+	if !helpers.DecodeJSONHelper(w, r, &updateReaderRequest) {
+		return
+	}
+
+	updateReaderRequest.Normalize()
+
+	if err := updateReaderRequest.Validate(); err != nil {
+		errDTO := schemas.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), err.Error())
+		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+		return
+	}
+
+	updateData := models.UpdateReaderData{
+		FirstName:  *updateReaderRequest.FirstName,
+		LastName:   *updateReaderRequest.LastName,
+		MiddleName: *updateReaderRequest.MiddleName,
+	}
+
+	reader, err := h.localStorage.UpdateReader(id, updateData)
+	if err != nil {
+		if errors.Is(err, local_storage.ErrReaderNotFound) {
+			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
+			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+			return
+		}
+
+		if errors.Is(err, local_storage.ErrReaderAlreadyExists) {
+			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
+			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			return
+		}
+
+		errDTO := schemas.NewError(
+			http.StatusInternalServerError,
+			http.StatusText(http.StatusInternalServerError),
+			"internal server error",
+		)
+		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		return
+	}
+
+	response := schemas.UpdateReaderResponseSchema{
+		ID:         reader.ID,
+		FirstName:  reader.FirstName,
+		LastName:   reader.LastName,
+		MiddleName: reader.MiddleName,
+		CreatedAt:  reader.CreatedAt,
+		UpdatedAt:  reader.UpdatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		fmt.Println("err:", err)
+	}
+}
+
 func (h *HTTPReaderHandlers) GetReader(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {

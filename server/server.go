@@ -34,16 +34,19 @@ func (s *HTTPServer) StartServer() error {
 	mux.HandleFunc("GET /books", s.bookHandlers.GetFilteredBooks)
 	mux.HandleFunc("GET /books/{id}", s.bookHandlers.GetBook)
 	mux.HandleFunc("POST /books", s.bookHandlers.CreateBook)
+	mux.HandleFunc("PUT /books/{id}", s.bookHandlers.UpdateBook)
 	mux.HandleFunc("DELETE /books/{id}", s.bookHandlers.DeleteBook)
 
 	mux.HandleFunc("GET /authors", s.authorHandlers.GetAllAuthors)
 	mux.HandleFunc("GET /authors/{id}", s.authorHandlers.GetAuthor)
 	mux.HandleFunc("POST /authors", s.authorHandlers.CreateAuthor)
+	mux.HandleFunc("PUT /authors/{id}", s.authorHandlers.UpdateAuthor)
 	mux.HandleFunc("DELETE /authors/{id}", s.authorHandlers.DeleteAuthor)
 
 	mux.HandleFunc("GET /readers", s.readerHandlers.GetAllReaders)
 	mux.HandleFunc("GET /readers/{id}", s.readerHandlers.GetReader)
 	mux.HandleFunc("POST /readers", s.readerHandlers.CreateReader)
+	mux.HandleFunc("PUT /readers/{id}", s.readerHandlers.UpdateReader)
 	mux.HandleFunc("DELETE /readers/{id}", s.readerHandlers.DeleteReader)
 
 	mux.HandleFunc("POST /readers/{readerID}/books/{bookID}", s.bookReaderHandlers.TakeBook)

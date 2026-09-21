@@ -127,15 +127,12 @@ func (s *Storage) UpdateBook(bookID uuid.UUID, data models.UpdateBookData) (mode
 	if err := s.Save(); err != nil {
 		s.books[bookID] = oldBook
 
-		for bookAuthor := range oldBookAuthors {
-			s.bookAuthors[bookAuthor] = struct{}{}
+		for bookAuthor := range s.GetBookAuthorByBookID(bookID) {
+			delete(s.bookAuthors, bookAuthor)
 		}
 
-		for authorID := range uniqueAuthorIDs {
-			delete(s.bookAuthors, models.BookAuthor{
-				BookID:   bookID,
-				AuthorID: authorID,
-			})
+		for bookAuthor := range oldBookAuthors {
+			s.bookAuthors[bookAuthor] = struct{}{}
 		}
 
 		return models.Book{}, err
