@@ -27,3 +27,9 @@ func NewAuthor(firstName, lastName, middleName string) Author {
 		DeletedAt:  nil,
 	}
 }
+
+type UpdateAuthorData struct {
+	FirstName  string
+	LastName   string
+	MiddleName string
+}

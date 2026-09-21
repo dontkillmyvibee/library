@@ -27,3 +27,9 @@ func NewReader(firstName, lastName, middleName string) Reader {
 		DeletedAt:  nil,
 	}
 }
+
+type UpdateReaderData struct {
+	FirstName  string
+	LastName   string
+	MiddleName string
+}
