@@ -181,6 +181,12 @@ func (h *HTTPAuthorHandlers) DeleteAuthor(w http.ResponseWriter, r *http.Request
 			return
 		}
 
+		if errors.Is(err, local_storage.ErrLastBookAuthor) {
+			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
+			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			return
+		}
+
 		errDTO := schemas.NewError(
 			http.StatusInternalServerError,
 			http.StatusText(http.StatusInternalServerError),

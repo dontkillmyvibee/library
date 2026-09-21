@@ -1,24 +1,30 @@
 package schemas
 
 import (
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
 	"uuid"
 )
 
+type Authors struct {
+	ID         uuid.UUID `json:"id"`
+	FirstName  string    `json:"first_name"`
+	LastName   string    `json:"last_name"`
+	MiddleName string    `json:"middle_name"`
+}
+
 type CreateBookRequestSchema struct {
-	Title       *string   `json:"title"`
-	Description *string   `json:"description"`
-	AuthorNames *[]string `json:"author_names"`
+	Title       *string      `json:"title"`
+	Description *string      `json:"description"`
+	AuthorIDs   *[]uuid.UUID `json:"author_ids"`
 }
 
 type GetBookResponseSchema struct {
 	ID          uuid.UUID `json:"id"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
-	AuthorNames []string  `json:"author_names"`
+	Authors     []Authors `json:"authors"`
 	IsAvailable bool      `json:"is_available"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -45,16 +51,18 @@ func (req *CreateBookRequestSchema) Validate() error {
 		return ErrValidationFailedDescription
 	}
 
-	if req.AuthorNames == nil {
-		return ErrMissingRequiredFieldsAuthorNames
+	if req.AuthorIDs == nil {
+		return ErrMissingRequiredFieldsAuthorIDs
 	}
 
-	if len(*req.AuthorNames) == 0 {
-		return ErrValidationFailedAuthorNames
+	if len(*req.AuthorIDs) == 0 {
+		return ErrValidationFailedAuthorIDs
 	}
 
-	if slices.Contains(*req.AuthorNames, "") {
-		return ErrValidationFailedAuthorNames
+	for _, authorID := range *req.AuthorIDs {
+		if authorID == uuid.Nil() {
+			return ErrValidationFailedAuthorIDs
+		}
 	}
 
 	return nil
@@ -67,11 +75,5 @@ func (req *CreateBookRequestSchema) Normalize() {
 
 	if req.Description != nil {
 		*req.Description = strings.TrimSpace(*req.Description)
-	}
-
-	if req.AuthorNames != nil {
-		for i := range *req.AuthorNames {
-			(*req.AuthorNames)[i] = strings.TrimSpace((*req.AuthorNames)[i])
-		}
 	}
 }
