@@ -442,6 +442,11 @@ func (s *Storage) ReaderTakeBook(readerID, bookID uuid.UUID) error {
 }
 
 func (s *Storage) ReaderReturnBook(readerID, bookID uuid.UUID) error {
+	reader, ok := s.readers[readerID]
+	if !ok || reader.DeletedAt != nil {
+		return ErrReaderNotFound
+	}
+
 	bookReader := models.NewBookReader(bookID, readerID)
 
 	if _, ok := s.bookReaders[bookReader]; !ok {
