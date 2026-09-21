@@ -37,11 +37,18 @@ func (h *HTTPBookHandlers) CreateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	book := models.NewBook(*createBookRequest.Title, *createBookRequest.Description, *createBookRequest.AuthorNames)
-	if err := h.localStorage.AddBook(book); err != nil {
-		if errors.Is(err, local_storage.ErrBookAlreadyExists) {
+	book := models.NewBook(*createBookRequest.Title, *createBookRequest.Description)
+	if _, err := h.localStorage.AddBook(book, *createBookRequest.AuthorIDs); err != nil {
+		if errors.Is(err, local_storage.ErrBookAlreadyExists) ||
+			errors.Is(err, local_storage.ErrDuplicateAuthor) ||
+			errors.Is(err, local_storage.ErrBookAuthorAlreadyExist) {
 			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
 			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			return
+		}
+		if errors.Is(err, local_storage.ErrAuthorNotFound) {
+			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
+			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
 			return
 		}
 		errDTO := schemas.NewError(
@@ -53,14 +60,25 @@ func (h *HTTPBookHandlers) CreateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authors := h.localStorage.GetAuthorsByBookID(book.ID)
+
 	response := schemas.CreateBookResponseSchema{
 		ID:          book.ID,
 		Title:       book.Title,
 		Description: book.Description,
-		AuthorNames: book.AuthorNames,
+		Authors:     make([]schemas.Authors, 0, len(authors)),
 		IsAvailable: book.IsAvailable,
 		CreatedAt:   book.CreatedAt,
 		UpdatedAt:   book.UpdatedAt,
+	}
+
+	for _, author := range authors {
+		response.Authors = append(response.Authors, schemas.Authors{
+			ID:         author.ID,
+			FirstName:  author.FirstName,
+			LastName:   author.LastName,
+			MiddleName: author.MiddleName,
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -103,14 +121,25 @@ func (h *HTTPBookHandlers) GetBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := schemas.GetBookResponseSchema{
+	authors := h.localStorage.GetAuthorsByBookID(book.ID)
+
+	response := schemas.CreateBookResponseSchema{
 		ID:          book.ID,
 		Title:       book.Title,
 		Description: book.Description,
-		AuthorNames: book.AuthorNames,
+		Authors:     make([]schemas.Authors, 0, len(authors)),
 		IsAvailable: book.IsAvailable,
 		CreatedAt:   book.CreatedAt,
 		UpdatedAt:   book.UpdatedAt,
+	}
+
+	for _, author := range authors {
+		response.Authors = append(response.Authors, schemas.Authors{
+			ID:         author.ID,
+			FirstName:  author.FirstName,
+			LastName:   author.LastName,
+			MiddleName: author.MiddleName,
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -146,11 +175,24 @@ func (h *HTTPBookHandlers) GetFilteredBooks(w http.ResponseWriter, r *http.Reque
 	response := make(schemas.GetAllBooksResponseSchema, 0, len(books))
 
 	for _, book := range books {
+		authors := h.localStorage.GetAuthorsByBookID(book.ID)
+
+		responseAuthors := make([]schemas.Authors, 0, len(authors))
+
+		for _, author := range authors {
+			responseAuthors = append(responseAuthors, schemas.Authors{
+				ID:         author.ID,
+				FirstName:  author.FirstName,
+				LastName:   author.LastName,
+				MiddleName: author.MiddleName,
+			})
+		}
+
 		response = append(response, schemas.GetBookResponseSchema{
 			ID:          book.ID,
 			Title:       book.Title,
 			Description: book.Description,
-			AuthorNames: book.AuthorNames,
+			Authors:     responseAuthors,
 			IsAvailable: book.IsAvailable,
 			CreatedAt:   book.CreatedAt,
 			UpdatedAt:   book.UpdatedAt,
@@ -162,7 +204,6 @@ func (h *HTTPBookHandlers) GetFilteredBooks(w http.ResponseWriter, r *http.Reque
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		fmt.Println("err:", err)
-		return
 	}
 }
 
