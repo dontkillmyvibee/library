@@ -8,14 +8,23 @@ import (
 )
 
 type HTTPServer struct {
-	bookHandlers   *handlers.HTTPBookHandlers
-	authorHandlers *handlers.HTTPAuthorHandlers
+	bookHandlers       *handlers.HTTPBookHandlers
+	authorHandlers     *handlers.HTTPAuthorHandlers
+	readerHandlers     *handlers.HTTPReaderHandlers
+	bookReaderHandlers *handlers.HTTPBookReaderHandlers
 }
 
-func NewHTTPServer(bookHandlers *handlers.HTTPBookHandlers, authorHandlers *handlers.HTTPAuthorHandlers) *HTTPServer {
+func NewHTTPServer(
+	bookHandlers *handlers.HTTPBookHandlers,
+	authorHandlers *handlers.HTTPAuthorHandlers,
+	readerHandlers *handlers.HTTPReaderHandlers,
+	bookReaderHandlers *handlers.HTTPBookReaderHandlers,
+) *HTTPServer {
 	return &HTTPServer{
-		bookHandlers:   bookHandlers,
-		authorHandlers: authorHandlers,
+		bookHandlers:       bookHandlers,
+		authorHandlers:     authorHandlers,
+		readerHandlers:     readerHandlers,
+		bookReaderHandlers: bookReaderHandlers,
 	}
 }
 
@@ -31,6 +40,14 @@ func (s *HTTPServer) StartServer() error {
 	mux.HandleFunc("GET /authors/{id}", s.authorHandlers.GetAuthor)
 	mux.HandleFunc("POST /authors", s.authorHandlers.CreateAuthor)
 	mux.HandleFunc("DELETE /authors/{id}", s.authorHandlers.DeleteAuthor)
+
+	mux.HandleFunc("GET /readers", s.readerHandlers.GetAllReaders)
+	mux.HandleFunc("GET /readers/{id}", s.readerHandlers.GetReader)
+	mux.HandleFunc("POST /readers", s.readerHandlers.CreateReader)
+	mux.HandleFunc("DELETE /readers/{id}", s.readerHandlers.DeleteReader)
+
+	mux.HandleFunc("POST /readers/{readerID}/books/{bookID}", s.bookReaderHandlers.TakeBook)
+	mux.HandleFunc("DELETE /readers/{readerID}/books/{bookID}", s.bookReaderHandlers.ReturnBook)
 
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		if errors.Is(err, http.ErrServerClosed) {

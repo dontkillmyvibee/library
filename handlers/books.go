@@ -41,7 +41,7 @@ func (h *HTTPBookHandlers) CreateBook(w http.ResponseWriter, r *http.Request) {
 	if _, err := h.localStorage.AddBook(book, *createBookRequest.AuthorIDs); err != nil {
 		if errors.Is(err, local_storage.ErrBookAlreadyExists) ||
 			errors.Is(err, local_storage.ErrDuplicateAuthor) ||
-			errors.Is(err, local_storage.ErrBookAuthorAlreadyExist) {
+			errors.Is(err, local_storage.ErrBookAuthorAlreadyExists) {
 			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
 			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
 			return
