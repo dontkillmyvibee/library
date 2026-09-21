@@ -59,6 +59,13 @@ func (s *Storage) AddBook(newBook models.Book, authorIDs []uuid.UUID) (models.Bo
 		}
 	}
 
+	if err := s.Save(); err != nil {
+		delete(s.books, newBook.ID)
+		s.DeleteBookAuthorByBookId(newBook.ID)
+
+		return models.Book{}, err
+	}
+
 	return newBook, nil
 }
 
@@ -121,13 +128,25 @@ func (s *Storage) DeleteBook(id uuid.UUID) error {
 		return ErrBookAlreadyDeleted
 	}
 
+	oldBook := book
+	oldBookAuthors := s.GetBookAuthorByBookID(id)
+
 	now := time.Now()
 	book.DeletedAt = &now
 	book.UpdatedAt = now
 
 	s.books[id] = book
-
 	s.DeleteBookAuthorByBookId(id)
+
+	if err := s.Save(); err != nil {
+		s.books[id] = oldBook
+
+		for bookAuthor := range oldBookAuthors {
+			s.bookAuthors[bookAuthor] = struct{}{}
+		}
+
+		return err
+	}
 
 	return nil
 }
@@ -146,6 +165,11 @@ func (s *Storage) AddAuthor(author models.Author) error {
 	}
 
 	s.authors[author.ID] = author
+
+	if err := s.Save(); err != nil {
+		delete(s.authors, author.ID)
+		return err
+	}
 
 	return nil
 }
@@ -212,13 +236,24 @@ func (s *Storage) DeleteAuthor(id uuid.UUID) error {
 		}
 	}
 
+	oldAuthor := author
+
 	now := time.Now()
 	author.DeletedAt = &now
 	author.UpdatedAt = now
 
 	s.authors[id] = author
-
 	s.DeleteBookAuthorByAuthorId(id)
+
+	if err := s.Save(); err != nil {
+		s.authors[id] = oldAuthor
+
+		for bookAuthor := range bookAuthors {
+			s.bookAuthors[bookAuthor] = struct{}{}
+		}
+
+		return err
+	}
 
 	return nil
 }
