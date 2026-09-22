@@ -73,6 +73,74 @@ func (s *Storage) AddBook(newBook models.Book, authorIDs []uuid.UUID) (models.Bo
 	return newBook, nil
 }
 
+func (s *Storage) UpdateBook(bookID uuid.UUID, data models.UpdateBookData) (models.Book, error) {
+	book, ok := s.books[bookID]
+	if !ok || book.DeletedAt != nil {
+		return models.Book{}, ErrBookNotFound
+	}
+
+	uniqueAuthorIDs := make(map[uuid.UUID]struct{}, len(data.AuthorIDs))
+
+	for _, authorID := range data.AuthorIDs {
+		if _, exists := uniqueAuthorIDs[authorID]; exists {
+			return models.Book{}, ErrDuplicateAuthor
+		}
+
+		author, ok := s.authors[authorID]
+		if !ok || author.DeletedAt != nil {
+			return models.Book{}, ErrAuthorNotFound
+		}
+
+		uniqueAuthorIDs[authorID] = struct{}{}
+	}
+
+	for id, existingBook := range s.books {
+		if id == bookID || existingBook.DeletedAt != nil {
+			continue
+		}
+
+		if existingBook.Title == data.Title {
+			return models.Book{}, ErrBookAlreadyExists
+		}
+	}
+
+	oldBook := book
+	oldBookAuthors := s.GetBookAuthorByBookID(bookID)
+
+	book.Title = data.Title
+	book.Description = data.Description
+	book.UpdatedAt = time.Now()
+
+	s.books[bookID] = book
+
+	for bookAuthor := range oldBookAuthors {
+		delete(s.bookAuthors, bookAuthor)
+	}
+
+	for authorID := range uniqueAuthorIDs {
+		s.bookAuthors[models.BookAuthor{
+			BookID:   bookID,
+			AuthorID: authorID,
+		}] = struct{}{}
+	}
+
+	if err := s.Save(); err != nil {
+		s.books[bookID] = oldBook
+
+		for bookAuthor := range s.GetBookAuthorByBookID(bookID) {
+			delete(s.bookAuthors, bookAuthor)
+		}
+
+		for bookAuthor := range oldBookAuthors {
+			s.bookAuthors[bookAuthor] = struct{}{}
+		}
+
+		return models.Book{}, err
+	}
+
+	return book, nil
+}
+
 func (s *Storage) GetBook(id uuid.UUID) (models.Book, error) {
 	book, ok := s.books[id]
 	if !ok {
@@ -176,6 +244,41 @@ func (s *Storage) AddAuthor(author models.Author) error {
 	}
 
 	return nil
+}
+
+func (s *Storage) UpdateAuthor(id uuid.UUID, data models.UpdateAuthorData) (models.Author, error) {
+	author, ok := s.authors[id]
+	if !ok || author.DeletedAt != nil {
+		return models.Author{}, ErrAuthorNotFound
+	}
+
+	for existingID, existingAuthor := range s.authors {
+		if existingID == id || existingAuthor.DeletedAt != nil {
+			continue
+		}
+
+		if data.LastName == existingAuthor.LastName &&
+			data.MiddleName == existingAuthor.MiddleName &&
+			data.FirstName == existingAuthor.FirstName {
+			return models.Author{}, ErrAuthorAlreadyExists
+		}
+	}
+
+	oldAuthor := author
+
+	author.FirstName = data.FirstName
+	author.LastName = data.LastName
+	author.MiddleName = data.MiddleName
+	author.UpdatedAt = time.Now()
+
+	s.authors[id] = author
+
+	if err := s.Save(); err != nil {
+		s.authors[id] = oldAuthor
+		return models.Author{}, err
+	}
+
+	return author, nil
 }
 
 func (s *Storage) GetAuthor(id uuid.UUID) (models.Author, error) {
@@ -341,6 +444,41 @@ func (s *Storage) AddReader(reader models.Reader) error {
 	}
 
 	return nil
+}
+
+func (s *Storage) UpdateReader(id uuid.UUID, data models.UpdateReaderData) (models.Reader, error) {
+	reader, ok := s.readers[id]
+	if !ok || reader.DeletedAt != nil {
+		return models.Reader{}, ErrReaderNotFound
+	}
+
+	for existingID, existingReader := range s.readers {
+		if existingID == id || existingReader.DeletedAt != nil {
+			continue
+		}
+
+		if existingReader.FirstName == data.FirstName &&
+			existingReader.LastName == data.LastName &&
+			existingReader.MiddleName == data.MiddleName {
+			return models.Reader{}, ErrReaderAlreadyExists
+		}
+	}
+
+	oldReader := reader
+
+	reader.FirstName = data.FirstName
+	reader.LastName = data.LastName
+	reader.MiddleName = data.MiddleName
+	reader.UpdatedAt = time.Now()
+
+	s.readers[id] = reader
+
+	if err := s.Save(); err != nil {
+		s.readers[id] = oldReader
+		return models.Reader{}, err
+	}
+
+	return reader, nil
 }
 
 func (s *Storage) DeleteReader(id uuid.UUID) error {
