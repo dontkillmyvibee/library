@@ -112,14 +112,8 @@ func (h *HTTPAuthorHandlers) GetAllAuthors(w http.ResponseWriter, r *http.Reques
 func (h *HTTPAuthorHandlers) UpdateAuthor(w http.ResponseWriter, r *http.Request) {
 	var updateAuthorRequest schemas.UpdateAuthorRequestSchema
 
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	id, ok := helpers.ParseUUIDPath(w, r, "id")
+	if !ok {
 		return
 	}
 
@@ -130,8 +124,7 @@ func (h *HTTPAuthorHandlers) UpdateAuthor(w http.ResponseWriter, r *http.Request
 	updateAuthorRequest.Normalize()
 
 	if err := updateAuthorRequest.Validate(); err != nil {
-		errDTO := schemas.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), err.Error())
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+		helpers.InitError(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -144,23 +137,16 @@ func (h *HTTPAuthorHandlers) UpdateAuthor(w http.ResponseWriter, r *http.Request
 	author, err := h.localStorage.UpdateAuthor(id, updateData)
 	if err != nil {
 		if errors.Is(err, local_storage.ErrAuthorNotFound) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+			helpers.InitError(w, http.StatusNotFound, err)
 			return
 		}
 
 		if errors.Is(err, local_storage.ErrAuthorAlreadyExists) {
-			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			helpers.InitError(w, http.StatusConflict, err)
 			return
 		}
 
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 
@@ -173,12 +159,7 @@ func (h *HTTPAuthorHandlers) UpdateAuthor(w http.ResponseWriter, r *http.Request
 		UpdatedAt:  author.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		fmt.Println("err:", err)
-	}
+	helpers.EncodeJSONHelper(w, http.StatusOK, response)
 }
 
 func (h *HTTPAuthorHandlers) DeleteAuthor(w http.ResponseWriter, r *http.Request) {

@@ -65,14 +65,8 @@ func (h *HTTPReaderHandlers) CreateReader(w http.ResponseWriter, r *http.Request
 func (h *HTTPReaderHandlers) UpdateReader(w http.ResponseWriter, r *http.Request) {
 	var updateReaderRequest schemas.UpdateReaderRequestSchema
 
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	id, ok := helpers.ParseUUIDPath(w, r, "id")
+	if !ok {
 		return
 	}
 
@@ -83,8 +77,7 @@ func (h *HTTPReaderHandlers) UpdateReader(w http.ResponseWriter, r *http.Request
 	updateReaderRequest.Normalize()
 
 	if err := updateReaderRequest.Validate(); err != nil {
-		errDTO := schemas.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), err.Error())
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+		helpers.InitError(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -97,23 +90,16 @@ func (h *HTTPReaderHandlers) UpdateReader(w http.ResponseWriter, r *http.Request
 	reader, err := h.localStorage.UpdateReader(id, updateData)
 	if err != nil {
 		if errors.Is(err, local_storage.ErrReaderNotFound) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+			helpers.InitError(w, http.StatusNotFound, err)
 			return
 		}
 
 		if errors.Is(err, local_storage.ErrReaderAlreadyExists) {
-			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			helpers.InitError(w, http.StatusConflict, err)
 			return
 		}
 
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 
@@ -126,12 +112,7 @@ func (h *HTTPReaderHandlers) UpdateReader(w http.ResponseWriter, r *http.Request
 		UpdatedAt:  reader.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		fmt.Println("err:", err)
-	}
+	helpers.EncodeJSONHelper(w, http.StatusOK, response)
 }
 
 func (h *HTTPReaderHandlers) GetReader(w http.ResponseWriter, r *http.Request) {
