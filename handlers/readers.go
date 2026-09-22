@@ -1,11 +1,8 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
-	"uuid"
 
 	"github.com/dontkillmyvibee/library.git/handlers/helpers"
 	"github.com/dontkillmyvibee/library.git/local_storage"
@@ -33,8 +30,7 @@ func (h *HTTPReaderHandlers) CreateReader(w http.ResponseWriter, r *http.Request
 	createReaderRequest.Normalize()
 
 	if err := createReaderRequest.Validate(); err != nil {
-		errDTO := schemas.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), err.Error())
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+		helpers.InitError(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -46,17 +42,11 @@ func (h *HTTPReaderHandlers) CreateReader(w http.ResponseWriter, r *http.Request
 
 	if err := h.localStorage.AddReader(reader); err != nil {
 		if errors.Is(err, local_storage.ErrReaderAlreadyExists) {
-			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			helpers.InitError(w, http.StatusConflict, err)
 			return
 		}
 
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 
@@ -69,40 +59,23 @@ func (h *HTTPReaderHandlers) CreateReader(w http.ResponseWriter, r *http.Request
 		UpdatedAt:  reader.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		fmt.Println("err:", err)
-	}
+	helpers.EncodeJSONHelper(w, http.StatusOK, response)
 }
 
 func (h *HTTPReaderHandlers) GetReader(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	id, ok := helpers.ParseUUIDPath(w, r, "id")
+	if !ok {
 		return
 	}
 
 	reader, err := h.localStorage.GetReader(id)
 	if err != nil {
 		if errors.Is(err, local_storage.ErrReaderNotFound) || errors.Is(err, local_storage.ErrReaderAlreadyDeleted) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+			helpers.InitError(w, http.StatusNotFound, err)
 			return
 		}
 
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 
@@ -115,12 +88,7 @@ func (h *HTTPReaderHandlers) GetReader(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:  reader.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		fmt.Println("err:", err)
-	}
+	helpers.EncodeJSONHelper(w, http.StatusOK, response)
 }
 
 func (h *HTTPReaderHandlers) GetAllReaders(w http.ResponseWriter, r *http.Request) {
@@ -139,45 +107,27 @@ func (h *HTTPReaderHandlers) GetAllReaders(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		fmt.Println("err:", err)
-	}
+	helpers.EncodeJSONHelper(w, http.StatusOK, response)
 }
 
 func (h *HTTPReaderHandlers) DeleteReader(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	id, ok := helpers.ParseUUIDPath(w, r, "id")
+	if !ok {
 		return
 	}
 
 	if err := h.localStorage.DeleteReader(id); err != nil {
 		if errors.Is(err, local_storage.ErrReaderNotFound) || errors.Is(err, local_storage.ErrReaderAlreadyDeleted) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+			helpers.InitError(w, http.StatusNotFound, err)
 			return
 		}
 
 		if errors.Is(err, local_storage.ErrReaderHasBook) {
-			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			helpers.InitError(w, http.StatusConflict, err)
 			return
 		}
 
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 
