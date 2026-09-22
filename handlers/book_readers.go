@@ -3,10 +3,9 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"uuid"
 
+	"github.com/dontkillmyvibee/library.git/handlers/helpers"
 	"github.com/dontkillmyvibee/library.git/local_storage"
-	"github.com/dontkillmyvibee/library.git/schemas"
 )
 
 type HTTPBookReaderHandlers struct {
@@ -20,47 +19,28 @@ func NewHTTPBookReaderHandlers(localStorage *local_storage.Storage) *HTTPBookRea
 }
 
 func (h *HTTPBookReaderHandlers) TakeBook(w http.ResponseWriter, r *http.Request) {
-	readerID, err := uuid.Parse(r.PathValue("readerID"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	readerID, ok := helpers.ParseUUIDPath(w, r, "readerID")
+	if !ok {
 		return
 	}
 
-	bookID, err := uuid.Parse(r.PathValue("bookID"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	bookID, ok := helpers.ParseUUIDPath(w, r, "bookID")
+	if !ok {
 		return
 	}
 
 	if err := h.localStorage.ReaderTakeBook(readerID, bookID); err != nil {
 		if errors.Is(err, local_storage.ErrReaderNotFound) || errors.Is(err, local_storage.ErrBookNotFound) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+			helpers.InitError(w, http.StatusNotFound, err)
 			return
 		}
 
 		if errors.Is(err, local_storage.ErrBookUnavailable) || errors.Is(err, local_storage.ErrReaderHasBook) {
-			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			helpers.InitError(w, http.StatusConflict, err)
 			return
 		}
 
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 
@@ -68,25 +48,13 @@ func (h *HTTPBookReaderHandlers) TakeBook(w http.ResponseWriter, r *http.Request
 }
 
 func (h *HTTPBookReaderHandlers) ReturnBook(w http.ResponseWriter, r *http.Request) {
-	readerID, err := uuid.Parse(r.PathValue("readerID"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	readerID, ok := helpers.ParseUUIDPath(w, r, "readerID")
+	if !ok {
 		return
 	}
 
-	bookID, err := uuid.Parse(r.PathValue("bookID"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	bookID, ok := helpers.ParseUUIDPath(w, r, "bookID")
+	if !ok {
 		return
 	}
 
@@ -94,17 +62,11 @@ func (h *HTTPBookReaderHandlers) ReturnBook(w http.ResponseWriter, r *http.Reque
 		if errors.Is(err, local_storage.ErrBookReaderNotFound) ||
 			errors.Is(err, local_storage.ErrBookNotFound) ||
 			errors.Is(err, local_storage.ErrReaderNotFound) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+			helpers.InitError(w, http.StatusNotFound, err)
 			return
 		}
 
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 

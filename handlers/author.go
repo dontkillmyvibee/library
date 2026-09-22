@@ -1,11 +1,8 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
-	"uuid"
 
 	"github.com/dontkillmyvibee/library.git/handlers/helpers"
 	"github.com/dontkillmyvibee/library.git/local_storage"
@@ -33,8 +30,7 @@ func (h *HTTPAuthorHandlers) CreateAuthor(w http.ResponseWriter, r *http.Request
 	createAuthorRequest.Normalize()
 
 	if err := createAuthorRequest.Validate(); err != nil {
-		errDTO := schemas.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), err.Error())
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+		helpers.InitError(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -45,21 +41,11 @@ func (h *HTTPAuthorHandlers) CreateAuthor(w http.ResponseWriter, r *http.Request
 	)
 	if err := h.localStorage.AddAuthor(author); err != nil {
 		if errors.Is(err, local_storage.ErrAuthorAlreadyExists) {
-			errDTO := schemas.NewError(
-				http.StatusBadRequest,
-				http.StatusText(http.StatusBadRequest),
-				err.Error(),
-			)
-			http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+			helpers.InitError(w, http.StatusBadRequest, err)
 			return
 		}
 
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 
@@ -72,46 +58,23 @@ func (h *HTTPAuthorHandlers) CreateAuthor(w http.ResponseWriter, r *http.Request
 		UpdatedAt:  author.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		fmt.Println("err:", err)
-	}
+	helpers.EncodeJSONHelper(w, http.StatusOK, response)
 }
 
 func (h *HTTPAuthorHandlers) GetAuthor(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	id, ok := helpers.ParseUUIDPath(w, r, "id")
+	if !ok {
 		return
 	}
 
 	author, err := h.localStorage.GetAuthor(id)
 	if err != nil {
-		if errors.Is(err, local_storage.ErrAuthorNotFound) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+		if errors.Is(err, local_storage.ErrAuthorNotFound) || errors.Is(err, local_storage.ErrAuthorAlreadyDeleted) {
+			helpers.InitError(w, http.StatusNotFound, err)
 			return
 		}
 
-		if errors.Is(err, local_storage.ErrAuthorAlreadyDeleted) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
-			return
-		}
-
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 
@@ -124,12 +87,7 @@ func (h *HTTPAuthorHandlers) GetAuthor(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:  author.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		fmt.Println("err:", err)
-	}
+	helpers.EncodeJSONHelper(w, http.StatusOK, response)
 }
 
 func (h *HTTPAuthorHandlers) GetAllAuthors(w http.ResponseWriter, r *http.Request) {
@@ -148,12 +106,7 @@ func (h *HTTPAuthorHandlers) GetAllAuthors(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		fmt.Println("err:", err)
-	}
+	helpers.EncodeJSONHelper(w, http.StatusOK, response)
 }
 
 func (h *HTTPAuthorHandlers) UpdateAuthor(w http.ResponseWriter, r *http.Request) {
@@ -229,42 +182,23 @@ func (h *HTTPAuthorHandlers) UpdateAuthor(w http.ResponseWriter, r *http.Request
 }
 
 func (h *HTTPAuthorHandlers) DeleteAuthor(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		errDTO := schemas.NewError(
-			http.StatusBadRequest,
-			http.StatusText(http.StatusBadRequest),
-			ErrInvalidUUID.Error(),
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusBadRequest)
+	id, ok := helpers.ParseUUIDPath(w, r, "id")
+	if !ok {
 		return
 	}
 
 	if err := h.localStorage.DeleteAuthor(id); err != nil {
-		if errors.Is(err, local_storage.ErrAuthorNotFound) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
-			return
-		}
-
-		if errors.Is(err, local_storage.ErrAuthorAlreadyDeleted) {
-			errDTO := schemas.NewError(http.StatusNotFound, http.StatusText(http.StatusNotFound), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusNotFound)
+		if errors.Is(err, local_storage.ErrAuthorNotFound) || errors.Is(err, local_storage.ErrAuthorAlreadyDeleted) {
+			helpers.InitError(w, http.StatusNotFound, err)
 			return
 		}
 
 		if errors.Is(err, local_storage.ErrLastBookAuthor) {
-			errDTO := schemas.NewError(http.StatusConflict, http.StatusText(http.StatusConflict), err.Error())
-			http.Error(w, errDTO.ToJSONString(), http.StatusConflict)
+			helpers.InitError(w, http.StatusConflict, err)
 			return
 		}
 
-		errDTO := schemas.NewError(
-			http.StatusInternalServerError,
-			http.StatusText(http.StatusInternalServerError),
-			"internal server error",
-		)
-		http.Error(w, errDTO.ToJSONString(), http.StatusInternalServerError)
+		helpers.InternalServerError(w)
 		return
 	}
 
