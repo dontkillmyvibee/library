@@ -102,6 +102,7 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+*.json
 
 # =========================
 # Profiling
