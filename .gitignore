@@ -94,6 +94,8 @@ logs/
 *.temp
 tmp/
 temp/
+/out
+/migrations
 
 # =========================
 # Database / local storage
